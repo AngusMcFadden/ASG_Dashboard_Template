@@ -57,12 +57,26 @@ export default function App() {
 // ── Task detail modal ─────────────────────────────────────────────────────────
 
 function TaskModal({ task, resources, dispatch, onClose }) {
+  const [pct,   setPct]   = useState(task.percentComplete)
+  const [start, setStart] = useState(task.startDate)
+  const [end,   setEnd]   = useState(task.endDate)
   const owners = resources.filter(r => task.resourceIds.includes(r.id))
+
+  const handleClose = () => {
+    const changed = {}
+    if (pct   !== task.percentComplete) changed.percentComplete = pct
+    if (start !== task.startDate)       changed.startDate       = start
+    if (end   !== task.endDate)         changed.endDate         = end
+    if (Object.keys(changed).length) {
+      dispatch({ type: 'UPDATE_TASK', payload: { id: task.id, ...changed } })
+    }
+    onClose()
+  }
 
   return (
     <div
       className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center backdrop-blur-sm"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-[modal-in_0.18s_ease]"
@@ -72,22 +86,53 @@ function TaskModal({ task, resources, dispatch, onClose }) {
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <h2 className="text-base font-bold text-slate-800 leading-tight pr-4">{task.name}</h2>
-            <button onClick={onClose} className="text-slate-300 hover:text-slate-600 text-xl leading-none shrink-0">×</button>
+            <button onClick={handleClose} className="text-slate-300 hover:text-slate-600 text-xl leading-none shrink-0">×</button>
           </div>
 
-          {/* Details */}
-          <div className="space-y-1.5 text-sm mb-4">
-            <Row label="Start"    value={task.startDate} />
-            <Row label="End"      value={task.endDate} />
-            <Row label="Progress" value={`${task.percentComplete}%`} />
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Start</p>
+              <input
+                type="date"
+                value={start}
+                onChange={e => setStart(e.target.value)}
+                className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">End</p>
+              <input
+                type="date"
+                value={end}
+                min={start}
+                onChange={e => setEnd(e.target.value)}
+                className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
-            <div
-              className="h-2 rounded-full bg-blue-500 transition-all"
-              style={{ width: `${task.percentComplete}%` }}
+          {/* Progress slider */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Progress</span>
+              <span className="text-sm font-bold text-slate-700">{pct}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={pct}
+              onChange={e => setPct(Number(e.target.value))}
+              className="w-full accent-blue-600 cursor-pointer"
             />
+            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1.5">
+              <div
+                className="h-1.5 rounded-full bg-blue-500 transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
           </div>
 
           {/* Assigned people */}
@@ -123,10 +168,10 @@ function TaskModal({ task, resources, dispatch, onClose }) {
               Delete
             </button>
             <button
-              className="flex-1 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-colors"
-              onClick={onClose}
+              className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors"
+              onClick={handleClose}
             >
-              Close
+              Save
             </button>
           </div>
         </div>
@@ -135,11 +180,3 @@ function TaskModal({ task, resources, dispatch, onClose }) {
   )
 }
 
-function Row({ label, value }) {
-  return (
-    <div className="flex gap-3">
-      <span className="text-slate-400 w-16 shrink-0 text-xs">{label}</span>
-      <span className="text-slate-700 font-medium text-xs">{value}</span>
-    </div>
-  )
-}

@@ -35,6 +35,7 @@ export default function GanttRow({
     return map
   }, [myTasks, visibleDays])
 
+  const remaining   = myTasks.filter(t => t.percentComplete < 100).length
   const totalWidth  = visibleDays.length * dayWidth
   const totalHeight = myTasks.length > 0 ? myTasks.length * TASK_ROW_H : EMPTY_ROW_H
   const rowBg       = isEven ? '#ffffff' : '#f8fafc'
@@ -69,12 +70,12 @@ export default function GanttRow({
               {resource.role}
             </div>
           )}
-          {myTasks.length > 0 && (
+          {remaining > 0 && (
             <div
               className="inline-block mt-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white"
               style={{ background: resource.color + 'cc' }}
             >
-              {myTasks.length} task{myTasks.length !== 1 ? 's' : ''}
+              {remaining} task{remaining !== 1 ? 's' : ''}
             </div>
           )}
         </div>
