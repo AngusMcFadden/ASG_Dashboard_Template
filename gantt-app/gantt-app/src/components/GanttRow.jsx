@@ -36,6 +36,7 @@ export default function GanttRow({
   }, [myTasks, visibleDays])
 
   const remaining   = myTasks.filter(t => t.percentComplete < 100).length
+  const overloaded  = isOverloaded(myTasks)
   const totalWidth  = visibleDays.length * dayWidth
   const totalHeight = myTasks.length > 0 ? myTasks.length * TASK_ROW_H : EMPTY_ROW_H
   const rowBg       = isEven ? '#ffffff' : '#f8fafc'
@@ -62,8 +63,18 @@ export default function GanttRow({
           {resource.initials}
         </div>
         <div className="overflow-hidden min-w-0 flex-1">
-          <div className="text-xs font-semibold text-slate-700 truncate leading-tight">
-            {resource.name}
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-semibold text-slate-700 truncate leading-tight">
+              {resource.name}
+            </span>
+            {overloaded && (
+              <span title="More than 2 tasks overlap" className="shrink-0">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="#ef4444">
+                  <path d="M2 1a1 1 0 0 1 1-1h10l-3 5 3 5H3a1 1 0 0 1-1-1V1z"/>
+                  <rect x="1" y="0" width="2" height="16" fill="#ef4444" rx="1"/>
+                </svg>
+              </span>
+            )}
           </div>
           {resource.role && (
             <div className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
@@ -148,7 +159,7 @@ function GridLines({ visibleDays, dayWidth, todayIndex }) {
           <div
             key={day.dateStr}
             className="absolute top-0 bottom-0 pointer-events-none"
-            style={{ left: i * dayWidth, width: dayWidth, background: 'rgba(148,163,184,0.07)' }}
+            style={{ left: i * dayWidth, width: dayWidth, background: 'rgba(100,116,139,0.18)' }}
           />
         ) : day.dayLabel === 'Mon' ? (
           <div
@@ -172,6 +183,31 @@ function GridLines({ visibleDays, dayWidth, todayIndex }) {
       )}
     </>
   )
+}
+
+/**
+ * Returns true if the person has more than 2 tasks active on the same day.
+ * Uses a sweep-line over task start/end events.
+ */
+function isOverloaded(tasks) {
+  if (tasks.length <= 2) return false
+
+  const events = []
+  tasks.forEach(t => {
+    events.push({ date: t.startDate, delta: 1  })
+    events.push({ date: t.endDate,   delta: -1 })
+  })
+  // Sort by date; on the same date process starts (+1) before ends (-1)
+  events.sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : b.delta - a.delta
+  )
+
+  let count = 0
+  for (const e of events) {
+    count += e.delta
+    if (count > 2) return true
+  }
+  return false
 }
 
 export { TASK_ROW_H, EMPTY_ROW_H }

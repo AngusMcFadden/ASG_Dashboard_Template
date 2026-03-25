@@ -55,7 +55,7 @@ export default function TimelineHeader({ visibleDays, dayWidth, labelWidth }) {
                 isToday
                   ? 'bg-blue-50 border-blue-200 text-blue-600 font-bold'
                   : day.isWeekend
-                  ? 'bg-slate-50 border-slate-100 text-slate-300'
+                  ? 'bg-slate-400 border-slate-400 text-slate-200'
                   : 'border-slate-100 text-slate-400',
               ].join(' ')}
               style={{ width: dayWidth, minWidth: dayWidth }}
