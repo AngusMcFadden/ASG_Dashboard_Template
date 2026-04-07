@@ -51,7 +51,7 @@ export default function GanttRow({
         className="shrink-0 flex items-start gap-2.5 px-3 pt-2.5 border-r border-slate-200 sticky left-0 z-10"
         style={{
           width: labelWidth,
-          height: totalHeight,
+          minHeight: totalHeight,
           background: rowBg,
           borderLeft: `3px solid ${resource.color}`,
         }}

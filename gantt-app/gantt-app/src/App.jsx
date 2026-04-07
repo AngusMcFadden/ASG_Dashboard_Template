@@ -1,18 +1,47 @@
 import React, { useReducer, useState } from 'react'
-import { appReducer, initialState } from './data/model'
+import { appReducer, initialState, makeTask, makeResource } from './data/model'
 import Toolbar    from './components/Toolbar'
 import InputPanel from './components/InputPanel'
 import GanttChart from './components/GanttChart'
 
 export default function App() {
-  const [state, dispatch]       = useReducer(appReducer, initialState)
+  const [state, dispatch]         = useReducer(appReducer, initialState)
   const [sidebarOpen, setSidebar] = useState(true)
-  const [selectedTask, setTask]  = useState(null)
+  const [selectedTask, setTask]   = useState(null)
+  const [cmdStatus, setCmdStatus] = useState({ status: 'idle', message: '' })
+
+  const handleCommand = async (cmd) => {
+    setCmdStatus({ status: 'loading', message: '' })
+    try {
+      const res = await fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd, resources: state.resources, tasks: state.tasks }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      const action = data.action
+      if (action.type === 'ERROR') {
+        setCmdStatus({ status: 'error', message: action.message })
+        return
+      }
+      if (action.type === 'ADD_TASK')     action.payload = makeTask(action.payload)
+      if (action.type === 'ADD_RESOURCE') action.payload = makeResource(action.payload)
+
+      dispatch(action)
+      setCmdStatus({ status: 'success', message: 'Done!' })
+      setTimeout(() => setCmdStatus({ status: 'idle', message: '' }), 2500)
+    } catch (err) {
+      setCmdStatus({ status: 'error', message: err.message })
+      setTimeout(() => setCmdStatus({ status: 'idle', message: '' }), 4000)
+    }
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
       {/* Top bar */}
-      <Toolbar state={state} dispatch={dispatch} />
+      <Toolbar state={state} dispatch={dispatch} onCommand={handleCommand} cmdStatus={cmdStatus} />
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar toggle tab */}

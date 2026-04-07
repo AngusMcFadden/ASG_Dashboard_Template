@@ -19,6 +19,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── PostgreSQL Pool ─────────────────────────────────────────────────────────
 
+const Anthropic = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ─── PostgreSQL Pool ─────────────────────────────────────────────────────────
+
 const pool = new Pool({
   host:     process.env.DB_HOST     || 'localhost',
   port:     parseInt(process.env.DB_PORT || '5432', 10),
@@ -351,6 +356,59 @@ app.delete('/tables/:name', async (req, res) => {
     return res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// ─── Natural Language Command ────────────────────────────────────────────────
+
+app.post('/api/command', async (req, res) => {
+  const { command, resources, tasks } = req.body;
+  if (!command) return res.status(400).json({ error: 'command is required.' });
+
+  const system = `You are a Gantt chart assistant. Given a natural language command and the current project state, return a single JSON action object.
+
+Available actions:
+- { "type": "UPDATE_TASK",    "payload": { "id": "<task id>", "name"?: string, "startDate"?: "YYYY-MM-DD", "endDate"?: "YYYY-MM-DD", "percentComplete"?: number, "resourceIds"?: ["<resource id>"] } }
+- { "type": "ADD_TASK",       "payload": { "name": string, "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD", "resourceIds"?: ["<resource id>"], "percentComplete"?: number } }
+- { "type": "DELETE_TASK",    "payload": "<task id>" }
+- { "type": "UPDATE_RESOURCE","payload": { "id": "<resource id>", "name"?: string, "role"?: string } }
+- { "type": "ADD_RESOURCE",   "payload": { "name": string, "role"?: string } }
+- { "type": "DELETE_RESOURCE","payload": "<resource id>" }
+- { "type": "ERROR",          "message": "<why the command cannot be performed>" }
+
+Rules:
+- All dates must be in 2026 in YYYY-MM-DD format.
+- Match task and resource names case-insensitively.
+- Respond with ONLY the raw JSON object — no markdown, no explanation.`;
+
+  const stateSnapshot = `Resources: ${JSON.stringify(resources.map(r => ({ id: r.id, name: r.name, role: r.role })))}
+Tasks: ${JSON.stringify(tasks.map(t => ({ id: t.id, name: t.name, startDate: t.startDate, endDate: t.endDate, resourceIds: t.resourceIds, percentComplete: t.percentComplete })))}
+
+Command: "${command}"`;
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      system,
+      messages: [{ role: 'user', content: stateSnapshot }],
+    });
+
+    let raw = msg.content[0].text.trim();
+    // Strip markdown code fences if present
+    raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
+    let action;
+    try {
+      action = JSON.parse(raw);
+    } catch {
+      console.error('Raw model output:', raw);
+      return res.status(500).json({ error: 'Model returned invalid JSON: ' + raw.slice(0, 120) });
+    }
+    return res.json({ action });
+  } catch (err) {
+    console.error('Command error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 
